@@ -1,39 +1,51 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect, assert } from "chai";
 import hre from "hardhat";
-import { bigint } from "hardhat/internal/core/params/argumentTypes";
+import DEPLOYMENT_MODULE from "../ignition/modules/deploy";
 
-const contractName = "MockUSDC";
-
-describe(contractName, function () {
+describe("Pegged", function () {
    async function deployFixture() {
+      // Get signers
       const [addr0, addr1, addr2] = await hre.ethers.getSigners();
-      const contract = await hre.ethers.deployContract(contractName);
-      return { contract, addr0, addr1, addr2 };
+
+      // Deploy using Ignition module
+      const { mockUSDC, europ, pegged } = await hre.ignition.deploy(DEPLOYMENT_MODULE);
+
+      return {
+         mockUSDC, europ, pegged,
+         addr0,
+         addr1,
+         addr2
+      };
    }
 
    describe("Initial state", function () {
+      it("Should set Pegged contract as EUROP owner", async function () {
+         const { europ, pegged } = await loadFixture(deployFixture);
+         expect(await europ.owner()).to.equal(
+            pegged.target,
+            "Pegged contract should be the owner of EUROP"
+         );
+      });
       it("Mint 100000 tokens to all initial addresses", async function () {
-         const { contract, addr0, addr1, addr2 } = await loadFixture(deployFixture);
-         const expectedBalance = BigInt(100000) * BigInt(10 ** 18); // 100000 tokens with 18 decimals
+         const { mockUSDC, addr0, addr1, addr2 } = await loadFixture(deployFixture);
+         const expectedBalance = BigInt(100000) * BigInt(10 ** 18);
 
          // Check balance for each address
          const addresses = [addr0, addr1, addr2];
          for (const addr of addresses) {
-            expect(await contract.balanceOf(addr.address)).to.equal(
+            expect(await mockUSDC.balanceOf(addr.address)).to.equal(
                expectedBalance,
                `Address ${addr.address} should have ${expectedBalance} tokens`
             );
          }
          // Verify total supply
-         expect(await contract.totalSupply()).to.equal(
+         expect(await mockUSDC.totalSupply()).to.equal(
             expectedBalance * BigInt(addresses.length),
             "Total supply should match sum of all minted tokens"
          );
       });
    });
-
 
    describe("Global (minimal😅) testing ", function () {
 
