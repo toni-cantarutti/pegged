@@ -5,12 +5,10 @@ pragma solidity 0.8.28;
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract MockPriceFeed is AggregatorV3Interface {
-   int256 private _price;
+   int256 private _price = 105000000;
    uint8 private constant _decimals = 8;
 
-   constructor(int256 initialPrice) {
-      _price = initialPrice;
-   }
+   constructor() {}
 
    function decimals() external pure override returns (uint8) {
       return _decimals;
