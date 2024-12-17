@@ -6,12 +6,13 @@ export async function deployFixture() {
    const [addr0, addr1, addr2] = await hre.ethers.getSigners();
 
    // Deploy using Ignition module
-   const { MockUSDC, EUROP, Pegged } = await hre.ignition.deploy(DEPLOYMENT_MODULE);
+   const { MockUSDC, EUROP, Pegged, MockPriceFeed } = await hre.ignition.deploy(DEPLOYMENT_MODULE);
 
    return {
       MockUSDC,
       EUROP,
       Pegged,
+      MockPriceFeed,
       addr0,
       addr1,
       addr2
