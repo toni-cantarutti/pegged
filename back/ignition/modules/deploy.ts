@@ -7,7 +7,7 @@ const DEPLOYMENT_MODULE = buildModule("FullDeployment", (m) => {
    const MockPriceFeed = m.contract("MockPriceFeed");
 
    // 2. Deploy Pegged with USDC and EUROP addresses
-   const Pegged = m.contract("Pegged", [MockUSDC, EUROP]);
+   const Pegged = m.contract("Pegged", [MockUSDC, EUROP, MockPriceFeed]);
 
    // 3. Transfer ownership of EUROP to Pegged
    m.call(EUROP, "transferOwnership", [Pegged]);
