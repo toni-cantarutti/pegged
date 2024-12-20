@@ -1,54 +1,40 @@
-import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+; import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import { deployFixture } from "./deployFixture";
 
 describe("Pegged", function () {
-   it("Should have correct USDC and EUROP addresses", async function () {
-      const { Pegged, MockUSDC, EUROP } = await loadFixture(deployFixture);
+   it("Check contract addresses", async function () {
+      const { Pegged, MockUSDC, EUROP, MockPriceFeed } = await loadFixture(deployFixture);
       expect(await Pegged.usdc()).to.equal(MockUSDC.target);
       expect(await Pegged.europ()).to.equal(EUROP.target);
+      expect(await Pegged.priceFeed()).to.equal(MockPriceFeed.target);
    });
 
-   it("Should deposit USDC and mint EUROP 1:1", async function () {
-      const { Pegged, MockUSDC, EUROP, addr0 } = await loadFixture(deployFixture);
-      const amount = BigInt(1000) * BigInt(10 ** 18);
+   it("Should deposit USDC and mint EUROP with fees and conversion rate", async function () {
+      const { Pegged, MockUSDC, EUROP, MockPriceFeed, addr0 } = await loadFixture(deployFixture);
 
-      // Approve USDC spending
-      await MockUSDC.approve(Pegged.target, amount);
-
-      // Check balances before deposit
-      const userUsdcBalance = await MockUSDC.balanceOf(addr0.address);
-      const userEuropBalance = await EUROP.balanceOf(addr0.address);
-
-      // Deposit USDC
-      await Pegged.deposit(amount);
-
-      // Check balances after deposit
-      expect(await MockUSDC.balanceOf(addr0.address)).to.equal(userUsdcBalance - amount);
-      expect(await MockUSDC.balanceOf(Pegged.target)).to.equal(amount);
-      expect(await EUROP.balanceOf(addr0.address)).to.equal(userEuropBalance + amount);
-   });
-
-   it("Should withdraw USDC by burning EUROP 1:1", async function () {
-      const { Pegged, MockUSDC, EUROP, addr0 } = await loadFixture(deployFixture);
-      const amount = BigInt(1000) * BigInt(10 ** 18);
-
-      // Setup: First deposit USDC
-      await MockUSDC.approve(Pegged.target, amount);
-      await Pegged.deposit(amount);
-
-      // Check balances before withdrawal
+      //Balances before deposit
       const userUsdcBalance = await MockUSDC.balanceOf(addr0.address);
       const userEuropBalance = await EUROP.balanceOf(addr0.address);
       const peggedUsdcBalance = await MockUSDC.balanceOf(Pegged.target);
+      const [, rateEURUSD] = await MockPriceFeed.latestRoundData();
+      const rateEURUSDDecimals = Number(await MockPriceFeed.decimals());
 
-      // Withdraw USDC
-      await Pegged.withdraw(amount);
+      const amountToDeposit = BigInt(1000 * 10 ** 18);
 
-      // Check balances after withdrawal
-      expect(await MockUSDC.balanceOf(addr0.address)).to.equal(userUsdcBalance + amount);
-      expect(await MockUSDC.balanceOf(Pegged.target)).to.equal(peggedUsdcBalance - amount);
-      expect(await EUROP.balanceOf(addr0.address)).to.equal(userEuropBalance - amount);
+      let expectedEuropAmount = (amountToDeposit * BigInt(10 ** rateEURUSDDecimals)) / BigInt(rateEURUSD);
+
+      // Calculate fee (0.1%)
+      const fee = (expectedEuropAmount * BigInt(await Pegged.FEE_BPS()) / BigInt(10000));
+      expectedEuropAmount = expectedEuropAmount - fee;
+
+      await MockUSDC.approve(Pegged.target, amountToDeposit);
+      await Pegged.deposit(amountToDeposit);
+
+      // Check balances after deposit
+      expect(await MockUSDC.balanceOf(addr0.address)).to.equal(userUsdcBalance - amountToDeposit);
+      expect(await EUROP.balanceOf(addr0.address)).to.equal(userEuropBalance + expectedEuropAmount);
+      expect(await MockUSDC.balanceOf(Pegged.target)).to.equal(amountToDeposit + peggedUsdcBalance);
+      expect(await Pegged.feeBalance()).to.equal(fee); // Check that fee was collected
    });
-
 });
