@@ -19,8 +19,8 @@ contract Pegged {
 
    // Balances
    uint256 public collateralBalance;
-   uint256 public feeBalance;
    uint256 public revenueBalance;
+   uint256 public hedgingBalance;
 
    // New event for tracking USDC amounts and exchange rates
    event TokensMinted(uint256 usdcAmount, uint256 europAmount, int256 exchangeRate, uint256 timestamp);
@@ -40,6 +40,9 @@ contract Pegged {
       usdc = IERC20(usdc_);
       europ = EUROP(europ_);
       priceFeed = AggregatorV3Interface(priceFeed_);
+
+      // Initialize revenue balance with initial USDC balance for testing purposes
+      revenueBalance = usdc.balanceOf(address(this));
    }
 
    /**
@@ -65,13 +68,13 @@ contract Pegged {
       // Mint EUROP tokens minus fee
       europ.mint(msg.sender, mintAmount);
 
-      feeBalance += fee;
+      revenueBalance += fee;
       emit FeesCollected(fee, block.timestamp);
       emit TokensMinted(usdcAmount, mintAmount, price, block.timestamp);
    }
 
    /**
-    * @dev Withdraw USDC by burning EUROP based on current EUR/USD rate
+    * @dev Withdraw USDC by burning EUROP tokens based on current EUR/USD rate
     * @param europAmount Amount of EUROP to burn
     */
    function withdraw(uint256 europAmount) external {
@@ -79,21 +82,21 @@ contract Pegged {
       (, int256 price, , , ) = priceFeed.latestRoundData();
       if (price <= 0) revert InvalidPriceFeed();
 
-      // Calculate USDC amount to return (EUROP amount / EUR/USD rate)
-      uint256 usdcAmount = (europAmount * uint256(price)) / 1e8;
-
       // Calculate fee
-      uint256 fee = (usdcAmount * FEE_BPS) / 10000;
-      uint256 transferAmount = usdcAmount - fee;
+      uint256 fee = (europAmount * FEE_BPS) / 10000;
+      uint256 burnAmount = europAmount - fee;
 
-      // Burn EUROP from user
-      europ.burn(msg.sender, europAmount);
+      // Calculate USDC amount to return (EUROP amount * USD/EUR rate)
+      uint256 usdcAmount = (burnAmount * uint256(price)) / 10 ** priceFeed.decimals();
 
-      // Transfer USDC minus fee
-      usdc.transfer(msg.sender, transferAmount);
+      // Burn EUROP tokens from user
+      //europ.burnFrom(msg.sender, burnAmount);
 
-      feeBalance += fee;
+      // Transfer USDC to user
+      usdc.transfer(msg.sender, usdcAmount);
+
+      revenueBalance += fee;
       emit FeesCollected(fee, block.timestamp);
-      emit TokensBurned(transferAmount, europAmount, price, block.timestamp);
+      emit TokensBurned(usdcAmount, burnAmount, price, block.timestamp);
    }
 }
