@@ -33,6 +33,8 @@ If the dollar depreciates, the protocol risks undercollateralization.
 
 Specialized participants who hedge the protocol's dollar collateral against EUR/USD exchange risks. They deposit collateral and benefit from EUR/USD volatility, earning if the dollar strengthens and losing if it weakens. Hedgers maintain a 3% minimum collateral-to-position ratio, ensuring the protocol is overcollateralized by 103%. If the ratio falls to 2%, liquidation is triggered and the protocol profits 2% and burns repurchased stablecoins.
 
+To manage their own risk exposure, hedgers typically utilize traditional forex instruments such as CME EUR/USD options and futures. These instruments allow hedgers to create offsetting positions in traditional markets, effectively neutralizing their exposure to EUR/USD movements while still providing the essential hedging service to the protocol.
+
 ### Implications
 
 Hedgers must provide upfront capital. Closing a hedging position requires transferring it to another hedger.
